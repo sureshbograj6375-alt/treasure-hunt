@@ -1,534 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>3D Superhero Jungle Adventure</title>
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jungle Quest</title>
 <style>
-*{box-sizing:border-box}
-body{
- margin:0;
- overflow:hidden;
- background:#071b16;
- color:white;
- font-family:Arial,sans-serif;
- touch-action:none;
-}
-canvas{display:block}
-
-#hud{
- position:absolute;
- top:10px;
- left:10px;
- z-index:5;
- padding:10px;
- background:#101c19eF;
- border:2px solid gold;
- border-radius:12px;
- font-weight:bold;
- line-height:1.7;
- font-size:15px;
-}
-
-#msg{
- position:absolute;
- top:115px;
- left:50%;
- transform:translateX(-50%);
- z-index:5;
- width:90%;
- text-align:center;
- background:#101c19dd;
- color:gold;
- padding:12px;
- border-radius:12px;
- font-weight:bold;
-}
-
-#restart{
- position:absolute;
- top:10px;
- right:10px;
- z-index:6;
- background:#171717;
- color:white;
- border:2px solid gold;
- border-radius:12px;
- padding:12px;
- font-weight:bold;
-}
-
-#controls{
- position:absolute;
- bottom:18px;
- left:0;
- right:0;
- z-index:6;
- display:flex;
- justify-content:space-between;
- padding:0 12px;
-}
-
-.group{
- display:flex;
- gap:7px;
-}
-
-button{
- background:#171717;
- color:white;
- border:2px solid gold;
- border-radius:13px;
- min-width:52px;
- min-height:55px;
- font-size:22px;
- font-weight:bold;
- touch-action:none;
-}
-
-button:active{
- background:gold;
- color:black;
-}
+body{margin:0;background:#102d19;color:white;text-align:center;font-family:Arial}
+h2{color:gold}
+canvas{width:100%;max-width:800px;background:skyblue}
+button{font-size:28px;padding:12px 22px;margin:8px;border:0;border-radius:12px;background:orange}
 </style>
 </head>
-
 <body>
+<h2>🌴 JUNGLE QUEST 🌴</h2>
+<p>❤️ <span id="life">3</span> | 🪙 <span id="score">0</span></p>
+<canvas id="game" width="800" height="400"></canvas>
+<br>
+<button id="left">⬅️</button>
+<button id="jump">⬆️</button>
+<button id="right">➡️</button>
+<script>
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+let p={x:50,y:280,w:35,h:45,vy:0,ground:false};
+let coins=[180,300,430,550,680].map(x=>({x,y:300}));
+let enemy={x:450,y:320,d:1};
+let score=0,life=3,over=false,win=false;
+let keys={left:false,right:false};
 
-<div id="hud">
-🦸 SUPERHERO HUNT<br>
-❤️ Health: <span id="health">100</span><br>
-🪙 Coins: <span id="coins">0</span><br>
-🔑 Key: <span id="key">No</span>
-</div>
-
-<div id="msg">
-Welcome to Jungle Adventure! Collect coins and find the treasure.
-</div>
-
-<button id="restart" onclick="location.reload()">↻ Restart</button>
-
-<div id="controls">
- <div class="group">
-  <button id="left">⬅</button>
-  <button id="right">➡</button>
- </div>
- <div class="group">
-  <button id="shield">🛡</button>
-  <button id="forward">⬆</button>
-  <button id="back">⬇</button>
- </div>
-</div>
-
-<script type="module">
-
-import * as THREE from
-'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-
-// SCENE
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x87ceeb);
-scene.fog=new THREE.Fog(0x87ceeb,35,110);
-
-// CAMERA
-const camera=new THREE.PerspectiveCamera(
- 80,innerWidth/innerHeight,0.1,200
-);
-camera.position.set(0,7,17);
-
-// RENDERER
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
-renderer.shadowMap.enabled=true;
-document.body.appendChild(renderer.domElement);
-
-// LIGHT
-scene.add(new THREE.HemisphereLight(0xffffff,0x335522,2));
-
-const sun=new THREE.DirectionalLight(0xffedbb,2.5);
-sun.position.set(10,20,10);
-sun.castShadow=true;
-scene.add(sun);
-
-// HELPERS
-const $=id=>document.getElementById(id);
-
-const material=color=>
- new THREE.MeshStandardMaterial({color});
-
-const green=material(0x08752c);
-const lightGreen=material(0x20a83b);
-const brown=material(0x654321);
-const gold=material(0xffcc22);
-const red=material(0xe51b23);
-const blue=material(0x0755dd);
-const skin=material(0xffc18a);
-
-let coins=0;
-let health=100;
-let hasKey=false;
-let shieldTime=0;
-let gameOver=false;
-let messageTime=0;
-
-function message(text){
- $('msg').textContent=text;
- messageTime=3;
+function control(id,key){
+let b=document.getElementById(id);
+b.onpointerdown=e=>{e.preventDefault();keys[key]=true};
+b.onpointerup=()=>keys[key]=false;
+b.onpointerleave=()=>keys[key]=false;
 }
+control("left","left");
+control("right","right");
 
-// GROUND
-const ground=new THREE.Mesh(
- new THREE.PlaneGeometry(100,160),
- material(0x176b27)
-);
-ground.rotation.x=-Math.PI/2;
-ground.position.set(0,-0.1,-45);
-scene.add(ground);
-
-// ROAD
-const road=new THREE.Mesh(
- new THREE.BoxGeometry(5,0.15,160),
- material(0x9b7847)
-);
-road.position.set(0,0,-45);
-scene.add(road);
-
-// RIVER
-const river=new THREE.Mesh(
- new THREE.BoxGeometry(5,0.12,160),
- new THREE.MeshStandardMaterial({
-  color:0x0088dd,
-  metalness:0.3,
-  roughness:0.2
- })
-);
-river.position.set(9,0,-45);
-scene.add(river);
-
-// TREES
-function tree(x,z,size=1){
-
- const trunk=new THREE.Mesh(
-  new THREE.CylinderGeometry(
-   0.25*size,0.4*size,3*size,8
-  ),
-  brown
- );
-
- trunk.position.set(x,1.5*size,z);
- trunk.castShadow true;
- scene.add(trunk);
-
- const leaves=new THREE.Mesh(
-  new THREE.ConeGeometry(1.6*size,4*size,8),
-  green
- );
-
- leaves.position.set(x,4*size,z);
- leaves.castShadow=true;
- scene.add(leaves);
-
- const top=new THREE.Mesh(
-  new THREE.ConeGeometry(1.1*size,3*size,8),
-  lightGreen
- );
-
- top.position.set(x,5.1*size,z);
- scene.add(top);
-}
-// JUNGLE
-for(let z=15;z>=-120;z-=6){
- tree(-4,z,1);
- tree(4,z,1);
- tree(-7,z-3,1.2);
- tree(7,z-3,1.2);
-}
-
-// SUPERHERO
-const hero=new THREE.Group();
-scene.add(hero);
-
-function box(parent,w,h,d,mat,x,y,z){
- const mesh=new THREE.Mesh(
-  new THREE.BoxGeometry(w,h,d),mat
- );
- mesh.position.set(x,y,z);
- mesh.castShadow=true;
- mesh.receiveShadow=true;
- parent.add(mesh);
- return mesh;
-}
-
-// BODY
-box(hero,0.9,1.2,0.5,blue,0,1.5,0);
-
-// HEAD
-box(hero,0.65,0.65,0.55,skin,0,2.45,0);
-
-// MASK
-box(hero,0.7,0.2,0.6,red,0,2.65,0);
-
-// BELT
-box(hero,1.1,0.2,0.55,gold,0,2.05,0);
-
-// LEGS
-box(hero,0.35,0.9,0.35,red,-0.3,0.45,0);
-box(hero,0.35,0.9,0.35,red,0.3,0.45,0);
-
-// ARMS
-box(hero,0.3,0.8,0.35,blue,-0.65,1.5,0);
-box(hero,0.3,0.8,0.35,blue,0.65,1.5,0);
-
-hero.position.set(0,0,5);
-// SNAKES
-const snakes=[];
-
-for(let i=0;i<8;i++){
-
- const snake=new THREE.Mesh(
-  new THREE.TorusGeometry(0.45,0.13,8,16),
-  material(0x22cc55)
- );
-
- snake.position.set(
-  i%2===0?-2:2,
-  0.3,
-  -12-i*10
- );
-
- scene.add(snake);
- snakes.push(snake);
-}
-
-// COINS
-const coinObjects=[];
-
-for(let i=0;i<12;i++){
-
- const coin=new THREE.Mesh(
-  new THREE.TorusGeometry(0.4,0.12,12,24),
-  gold
- );
-
- coin.position.set(
-  i%2===0?-1.5:1.5,
-  1,
-  -8-i*7
- );
-
- scene.add(coin);
- coinObjects.push(coin);
-}
-
-// GOLDEN KEY
-const key=new THREE.Group();
-
-const ring=new THREE.Mesh(
- new THREE.TorusGeometry(0.35,0.1,12,24),
- gold
- );
-
-key.add(ring);
-
-box(key,0.15,0.9,0.15,gold,0,-0.5,0);
-
-key.position.set(0,1,-75);
-scene.add(key);
-// TREASURE CHEST
-const chest=new THREE.Group();
-
-box(chest,2,1.2,1.2,material(0x8b4513),0,0.6,0);
-box(chest,2.05,0.25,1.25,gold,0,1.25,0);
-box(chest,0.35,0.45,0.15,gold,0,0.85,0);
-
-chest.position.set(0,0,-100);
-scene.add(chest);
-
-// CONTROLS
-const keys={
- left:false,
- right:false,
- forward:false,
- back:false
+document.getElementById("jump").onclick=()=>{
+if(p.ground&&!over&&!win){p.vy=-12;p.ground=false;}
 };
 
-function bind(id,name){
+function draw(){
+ctx.clearRect(0,0,800,400);
+ctx.fillStyle="#176b2c";
+for(let i=0;i<8;i++){
+ctx.fillRect(i*110,170,20,180);
+ctx.beginPath();
+ctx.arc(i*110+10,165,45,0,7);
+ctx.fill();
+}
+ctxfor(let i=0;i<8;i++){
+ctx.fillRect(i*110,170,20,180);
+ctx.beginPath();
+ctx.arc(i*110+10,165,45,0,7);
+ctx.fill();
+}
+ctx.fillStyle="#80552e";
+ctx.fillRect(0,350,800,50);
 
- const button=$(id);
+coins.forEach(a=>{
+ctx.fillStyle="gold";
+ctx.beginPath();ctx.arc(a.x,a.y,10,0,7);ctx.fill();
+});
 
- button.addEventListener('pointerdown',e=>{
-  e.preventDefault();
-  keys[name]=true;
- });
+ctx.fillStyle="#222";
+ctx.fillRect(enemy.x,enemy.y,35,30);
 
- ['pointerup','pointerleave','pointercancel'].forEach(event=>{
-  button.addEventListener(event,()=>{
-   keys[name]=false;
-  });
- });
+ctx.fillStyle="red";
+ctx.fillRect(p.x,p.y,p.w,p.h);
+ctx.fillStyle="#ffdbac";
+ctx.fillRect(p.x+7,p.y-15,23,20);
+
+document.getElementById("score").textContent=score;
+document.getElementById("life").textContent=life;
 }
 
-bind('left','left');
-bind('right','right');
-bind('forward','forward');
-bind('back','back');
+function update(){
+if(over||win)return;
+if(keys.left)p.x-=4;
+if(keys.right)p.x+=4;
+p.x=Math.max(0,Math.min(765,p.x));
 
-$('shield').addEventListener('pointerdown',()=>{
- shieldTime=5;
- message('Shield activated!');
-});
-// KEYBOARD
-addEventListener('keydown',e=>{
- if(e.key==='ArrowLeft')keys.left=true;
- if(e.key==='ArrowRight')keys.right=true;
- if(e.key==='ArrowUp')keys.forward=true;
- if(e.key==='ArrowDown')keys.back=true;
-});
+p.vy+=.6;p.y+=p.vy;
+if(p.y+p.h>=350){p.y=305;p.vy=0;p.ground=true;}
 
-addEventListener('keyup',e=>{
- if(e.key==='ArrowLeft')keys.left=false;
- if(e.key==='ArrowRight')keys.right=false;
- if(e.key==='ArrowUp')keys.forward=false;
- if(e.key==='ArrowDown')keys.back=false;
-});
+enemy.x+=enemy.d*2;
+if(enemy.x>730||enemy.x<300)enemy.d*=-1;
 
-// GAME LOOP
-const clock=new THREE.Clock();
-
-function animate(){
-
- requestAnimationFrame(animate);
-
- const dt=Math.min(clock.getDelta(),0.05);
- const t=clock.elapsedTime;
-
- if(!gameOver){
-
-  // MOVEMENT
-  if(keys.left)hero.position.x-=5*dt;
-  if(keys.right)hero.position.x+=5*dt;
-  if(keys.forward)hero.position.z-=7*dt;
-  if(keys.back)hero.position.z+=7*dt;
-
-  hero.position.x=THREE.MathUtils.clamp(
-   hero.position.x,-2,2
-  );
-
-  hero.position.z=THREE.MathUtils.clamp(
-   hero.position.z,-105,5
-  );
-
-  if(shieldTime>0)shieldTime-=dt;
-// COINS
-  coinObjects.forEach(coin=>{
-
-   if(!coin.visible)return;
-
-   coin.rotation.y+=dt*3;
-
-   if(coin.position.distanceTo(hero.position)<2){
-
-    coin.visible=false;
-    coins++;
-
-    $('coins').textContent=coins;
-    message('Coin collected!');
-   }
-  });
-
-  // KEY
-  key.rotation.y+=dt*2;
-
-  if(key.visible&&key.position.distanceTo(hero.position)<2){
-
-   key.visible=false;
-   hasKey=true;
-
-   $('key').textContent='Yes';
-   message('Golden key found!');
-  }
-
-  // TREASURE
-  if(chest.visible&&chest.position.distanceTo(hero.position)<3){
-
-   if(hasKey){
-
-    chest.visible=false;
-    message('🏆 YOU WIN! TREASURE UNLOCKED!');
-    gameOver=true;
-
-   }else{
-    message('Find the golden key first!');
-   }
-  }
-
-  // SNAKES
-  snakes.forEach(snake=>{
-
-   snake.position.x+=Math.sin(
-    t*2+snake.position.z
-   )*dt*0.7;
-
-   if(
-    snake.position.distanceTo(hero.position)<1.5
-    &&shieldTime<=0
-   ){
-
-    health-=20*dt;
-
-    $('health').textContent=Math.max(
-     0,Math.floor(health)
-    );
-   }
-  });
-
-  // HEALTH
-  if(health<=0){
-
-   health=0;
-   gameOver=true;
-   message('GAME OVER! Press Restart.');
-  }
-
-  if(messageTime>0){
-
-   messageTime-=dt;
-
-   if(messageTime<=0&&!gameOver){
-    $('msg').textContent=
-     'Find the key and reach the treasure!';
-   }
-  }
- }
-
- // CAMERA
- camera.position.set(
-  hero.position.x*0.35,
-  7,
-  hero.position.z+12
- );
-
- camera.lookAt(
-  hero.position.x,
-  1,
-  hero.position.z-5
- );
-
- renderer.render(scene,camera);
+coins=coins.filter(a=>{
+let hit=p.x<a.x+12&&p.x+p.w>a.x-12&&
+p.y<a.y+12&&p.y+p.h>a.y-12;
+if(hit)score+=10;
+return !hit;
+});if(p.x<enemy.x+35&&p.x+35>enemy.x&&
+p.y<enemy.y+30&&p.y+45>enemy.y){
+life--;p.x=50;
+if(life<=0)over=true;
+}
+if(coins.length===0)win=true;
 }
 
-animate();
-// SCREEN RESIZE
-addEventListener('resize',()=>{
+function loop(){
+update();draw();
+if(over||win){
+ctx.fillStyle="black";
+ctx.font="40px Arial";
+ctx.textAlign="center";
+ctx.fillText(over?"GAME OVER":"LEVEL COMPLETE!",400,200);
+}
+requestAnimationFrame(loop);
+}
 
- camera.aspect=innerWidth/innerHeight;
- camera.updateProjectionMatrix();
-
- renderer.setSize(innerWidth,innerHeight);
+document.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft")keys.left=true;
+if(e.key==="ArrowRight")keys.right=true;
+if(e.key==="ArrowUp"||e.key===" "){
+if(p.ground){p.vy=-12;p.ground=false;}
+}
 });
-
+document.addEventListener("keyup",e=>{
+if(e.key==="ArrowLeft")keys.left=false;
+if(e.key==="ArrowRight")keys.right=false;
+});
+loop();
 </script>
 </body>
 </html>
