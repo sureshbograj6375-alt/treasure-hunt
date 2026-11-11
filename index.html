@@ -1,439 +1,211 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Jungle Quest - Treasure Hunt</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jungle Hero 3D</title>
 <style>
-*{box-sizing:border-box}
-
-body{
+body {
  margin:0;
- padding:12px;
- text-align:center;
- font-family:Arial,sans-serif;
- color:white;
- background:linear-gradient(#063b24,#092b18);
+ overflow:hidden;
+ background:#07130d;
+ font-family:Arial;
 }
-
-h1{
- color:#ffdf55;
- font-size:27px;
- text-shadow:2px 3px 5px black;
-}
-
-.small{color:#b9edba}
-
-#info{
+#hud {
+ position:absolute;
+ top:10px;
+ left:10px;
+ right:10px;
  display:flex;
- justify-content:center;
- flex-wrap:wrap;
- gap:8px;
- margin:15px auto;
+ justify-content:space-between;
+ color:gold;
+ z-index:5;
 }
-
-.badge{
- background:#175c35;
- border:2px solid #70b94e;
- padding:10px 13px;
- border-radius:12px;
- font-weight:bold;
+#hud span {
+ background:#111;
+ padding:10px;
+ border:1px solid gold;
+ border-radius:10px;
 }
-
-.gamebox{
- max-width:540px;
- margin:auto;
- padding:5px;
- background:#754b20;
- border:4px solid #d4a54a;
- border-radius:15px;
-}
-
-canvas{
- width:100%;
- display:block;
- border-radius:8px;
- touch-action:none;
- background:#398b35;
-}
-
-#message{
- min-height:35px;
- color:#ffe66b;
- font-weight:bold;
- margin:14px 0;
-}
-
-.controls{
+#controls {
+ position:absolute;
+ bottom:15px;
+ left:15px;
  display:grid;
- grid-template-columns:repeat(3,65px);
- justify-content:center;
- gap:8px;
- margin:15px auto;
+ grid-template-columns:55px 55px 55px;
+ gap:5px;
+ z-index:5;
 }
-
-button{
- border:0;
- border-radius:12px;
- background:linear-gradient(#ffe36c,#e6a923);
- color:#392508;
- font-size:24px;
- font-weight:bold;
+button {
+ background:#111;
+ color:gold;
+ border:1px solid gold;
+ border-radius:10px;
  padding:12px;
- cursor:pointer;
- box-shadow:0 4px 0 #94600f;
+ font-size:20px;
+ touch-action:none;
 }
-
-button:active{
- transform:translateY(3px);
- box-shadow:none;
-}
-
-#next,#restart{
- font-size:16px;
- padding:12px 22px;
- margin:5px;
-}
-
-#next{display:none}
-
-@media(max-width:400px){
- h1{font-size:23px}
- .badge{padding:8px;font-size:13px}
-}
+#up {grid-column:2}
+#left {grid-column:1}
+#right {grid-column:3}
+#down {grid-column:2}
 </style>
 </head>
-
 <body>
 
-<h1>🌴 JUNGLE QUEST 🌴</h1>
-<div class="small">⚔️ TREASURE HUNT ADVENTURE ⚔️</div>
-
-<div id="info">
- <div class="badge">⭐ Level: <span id="level">1</span></div>
- <div class="badge">🪙 Coins: <span id="coins">0</span></div>
- <div class="badge">❤️ Lives: <span id="lives">3</span></div>
+<div id="hud">
+<span>❤️ <b id="life">3</b></span>
+<span>🪙 <b id="coin">0</b></span>
+<span>⭐ Level <b id="level">1</b></span>
 </div>
 
-<div class="gamebox">
- <canvas id="game" width="520" height="360"></canvas>
+<div id="controls">
+<button id="up">▲</button>
+<button id="left">◀</button>
+<button id="right">▶</button>
+<button id="down">▼</button>
 </div>
 
-<div id="message">
- 🔑 चाबी खोजो और खजाना हासिल करो!
-</div>
+<script type="module">
+import * as THREE from
+'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
-<div class="controls">
- <div></div>
- <button onclick="move(0,-1)">⬆️</button>
- <div></div>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87b9d0);
+scene.fog = new THREE.Fog(0x87b9d0,20,60);
 
- <button onclick="move(-1,0)">⬅️</button>
- <button onclick="move(0,1)">⬇️</button>
- <button onclick="move(1,0)">➡️</button>
-</div>
+const camera = new THREE.PerspectiveCamera(
+65, innerWidth/innerHeight, 0.1, 100
+);
 
-<button id="next" onclick="nextLevel()">
- 🏆 NEXT LEVEL
-</button>
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
 
-<button id="restart" onclick="restart()">
- 🔄 RESTART
-</button>
+scene.add(new THREE.HemisphereLight(0xffffff,0x244020,2));
 
-<p class="small">
- 🌳 पेड़ों के बीच रास्ता खोजो। 🐍 साँप से बचो।
- <br>🔑 चाबी लो और 💎 खजाना खोलो!
-</p>
+const sun = new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(8,15,8);
+scene.add(sun);
 
-<script>
-
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-
-const cols=13;
-const rows=9;
-const size=40;
-
-let level=1;
-let coins=Number(localStorage.getItem("jungleCoins")||0);
-let lives=3;
-
-let player,key,chest,snake,trees;
-let hasKey=false;
-let won=false;
-let gameOver=false;
-
-let snakeTimer;
-
-function same(a,b){
- return a.x===b.x && a.y===b.y;
+function material(color) {
+ return new THREE.MeshStandardMaterial({color});
 }
 
-function randomCell(){
- return {
-  x:Math.floor(Math.random()*11)+1,
-  y:Math.floor(Math.random()*7)+1
- };
+const gold = material(0xffc400);
+const black = material(0x111111);
+const brown = material(0x69401e);
+const green = material(0x17652a);
+
+const ground = new THREE.Mesh(
+ new THREE.PlaneGeometry(100,100),
+ material(0x315c25)
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+function tree(x,z) {
+ const trunk = new THREE.Mesh(
+  new THREE.CylinderGeometry(.2,.3,2,8),
+  brown
+ );
+ trunk.position.set(x,1,z);
+ scene.add(trunk);
+
+ const crown = new THREE.Mesh(
+  new THREE.ConeGeometry(1.3,3,8),
+  green
+ );
+ crown.position.set(x,3,z);
+ scene.add(crown);
 }
 
-function occupied(p){
- return same(p,player) ||
- same(p,key) ||
- same(p,chest) ||
- same(p,snake) ||
- trees.some(t=>same(t,p));
-}
-
-function newLevel(){
-
- clearInterval(snakeTimer);
-
- player={x:1,y:1};
- key=randomCell();
- chest={x:11,y:7};
- snake={x:8,y:2};
-
- trees=[];
- hasKey=false;
- won=false;
- gameOver=false;
-
- document.getElementById("next").style.display="none";
-
- for(let i=0;i<15;i++){
-  let t=randomCell();
-  if(!occupied(t)){
-   trees.push(t);
+for(let x=-22;x<=22;x+=4) {
+ for(let z=-22;z<=22;z+=4) {
+  if(Math.abs(x)>5 || Math.abs(z)>5) {
+   tree(x,z);
   }
  }
+}
+const river = new THREE.Mesh(
+ new THREE.PlaneGeometry(4,50),
+ material(0x168fc2)
+);
+river.rotation.x = -Math.PI/2;
+river.position.set(10,.02,0);
+scene.add(river);
 
- updateInfo();
- draw();
+// BLACK & GOLD SUPERHERO
+const hero = new THREE.Group();
+scene.add(hero);
 
- document.getElementById("message").innerText=
- "🔑 जंगल में चाबी खोजो!";
-
- startSnake();
+function box(parent,w,h,d,mat,x,y,z) {
+ const m = new THREE.Mesh(
+  new THREE.BoxGeometry(w,h,d),mat
+ );
+ m.position.set(x,y,z);
+ parent.add(m);
 }
 
-function updateInfo(){
+box(hero,.8,1.1,.45,black,0,1.25,0);
 
- document.getElementById("level").innerText=level;
- document.getElementById("coins").innerText=coins;
- document.getElementById("lives").innerText=lives;
+const head = new THREE.Mesh(
+ new THREE.SphereGeometry(.35,16,16),gold
+);
+head.position.y=2.05;
+hero.add(head);
 
+box(hero,.9,1.2,.12,gold,0,1.25,.32);
+box(hero,.83,.13,.5,gold,0,.9,0);
+box(hero,.25,.65,.3,black,-.22,.35,0);
+box(hero,.25,.65,.3,black,.22,.35,0);
+box(hero,.22,.8,.25,gold,-.55,1.3,0
+let lives=3,score=0,level=1;
+let hasKey=false,shield=false,gameOver=false;
+
+const keys={};
+const $=id=>document.getElementById(id);
+
+function update(){
+ $('life').textContent=lives;
+ $('coin').textContent=score;
+ $('level').textContent=level;
 }
 
-function draw(){
+const dirs={
+ up:'ArrowUp',
+ down:'ArrowDown',
+ left:'ArrowLeft',
+ right:'ArrowRight'
+};
 
- ctx.clearRect(0,0,520,360);
-
- // Jungle ground
- for(let y=0;y<rows;y++){
-  for(let x=0;x<cols;x++){
-
-   ctx.fillStyle=(x+y)%2===0?
-   "#55a944":"#438d36";
-
-   ctx.fillRect(x*size,y*size,size,size);
-
-   ctx.strokeStyle="#36782c";
-   ctx.strokeRect(x*size,y*size,size,size);
-  }
- }
-
- // Jungle trees
- trees.forEach(t=>{
-  ctx.font="29px Arial";
-  ctx.fillText("🌳",t.x*size+4,t.y*size+31);
+for(const [id,k] of Object.entries(dirs)){
+ const b=$(id);
+ b.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  keys[k]=true;
  });
-
- // Camp
- ctx.font="29px Arial";
- ctx.fillText("🏕️",45,70);
-
- // Treasure
- if(!won){
-  ctx.font="29px Arial";
-  ctx.fillText("💎",chest.x*size+5,chest.y*size+31);
+ for(const ev of ['pointerup','pointerleave','pointercancel']){
+  b.addEventListener(ev,()=>keys[k]=false);
  }
-
- // Key
- if(!hasKey){
-  ctx.font="29px Arial";
-  ctx.fillText("🔑",key.x*size+5,key.y*size+31);
- }
-
- // Snake
- ctx.font="29px Arial";
- ctx.fillText("🐍",snake.x*size+5,snake.y*size+31);
-
- // Player
- ctx.font="29px Arial";
- ctx.fillText("🧑🏻‍🌾",player.x*size+5,player.y*size+31);
-
 }
 
-function move(dx,dy){
+addEventListener('keydown',e=>keys[e.key]=true);
+addEventListener('keyup',e=>keys[e.key]=false);
 
- if(gameOver||won)return;
-
- let nx=player.x+dx;
- let ny=player.y+dy;
-
- if(nx<0||ny<0||nx>=cols||ny>=rows)return;
-
- player={x:nx,y:ny};
-
- // Get key
- if(!hasKey&&same(player,key)){
-
-  hasKey=true;
-
-  document.getElementById("message").innerText=
-  "🎉 चाबी मिल गई! अब खजाना खोलो!";
- }
-
- // Snake collision
- if(same(player,snake)){
-  hitSnake();
-  draw();
-  return;
- }
-
- // Treasure collision
- if(same(player,chest)){
-
-  if(hasKey){
-
-   won=true;
-   coins+=10;
-
-   localStorage.setItem("jungleCoins",coins);
-
-   updateInfo();
-
-   document.getElementById("message").innerText=
-   "🏆 शानदार! खजाना मिल गया!";
-
-   document.getElementById("next").style.display="inline-block";
-
-   clearInterval(snakeTimer);
-
-  }else{
-
-   document.getElementById("message").innerText=
-   "🔒 पहले चाबी खोजो!";
-
-  }
- }
-
- draw();
-
+function distance(a,b){
+ return a.position.distanceTo(b.position);
 }
 
-function hitSnake(){
+const clock=new THREE.Clock();
 
- lives--;
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
 
- updateInfo();
+ if(!gameOver){
 
- if(lives<=0){
+  let dx=0,dz=0;
 
-  gameOver=true;
-
-  document.getElementById("message").innerText=
-  "😢 GAME OVER! RESTART दबाओ।";
-
-  clearInterval(snakeTimer);
-
- }else{
-
-  player={x:1,y:1};
-
-  document.getElementById("message").innerText=
-  "🐍 साँप ने पकड़ लिया! एक जान कम हुई।";
-
- }
-
-}
-
-function startSnake(){
-
- snakeTimer=setInterval(()=>{
-
-  if(gameOver||won)return;
-
-  let directions=[
-   [1,0],[-1,0],[0,1],[0,-1]
-  ];
-
-  let d=directions[
-   Math.floor(Math.random()*directions.length)
-  ];
-
-  let nx=snake.x+d[0];
-  let ny=snake.y+d[1];
-
-  if(nx>0&&nx<12&&ny>0&&ny<8){
-
-   snake={x:nx,y:ny};
-
-  }
-
-  if(same(player,snake)){
-   hitSnake();
-  }
-
-  draw();
-
- },Math.max(450,1100-level*5));
-
-}
-
-function nextLevel(){
-
- if(!won)return;
-
- if(level>=100){
-
-  document.getElementById("message").innerText=
-  "👑 बधाई! आपने सभी 100 LEVELS पूरे कर लिए!";
-
-  document.getElementById("next").style.display="none";
-
-  return;
- }
-
- level++;
-
- newLevel();
-
-}
-
-function restart(){
-
- clearInterval(snakeTimer);
-
- level=1;
- lives=3;
-
- newLevel();
-
-}
- 
-document.addEventListener("keydown",e=>{
-  if(e.key==="ArrowUp")move(0,-1);
-  if(e.key==="ArrowDown")move(0,1);
-  if(e.key==="ArrowLeft")move(-1,0);
-  if(e.key==="ArrowRight")move(1,0);
-});
-
-newLevel();
-updateInfo();
-
-</script>
-</body>
-</html>
+  if(keys.ArrowUp||keys.w)dz-=1;
