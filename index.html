@@ -218,7 +218,317 @@ function tree(x,z,size=1){
  );
 
  trunk.position.set(x,1.5*size,z);
- trunk.castShadow
- </script>
+ trunk.castShadow true;
+ scene.add(trunk);
+
+ const leaves=new THREE.Mesh(
+  new THREE.ConeGeometry(1.6*size,4*size,8),
+  green
+ );
+
+ leaves.position.set(x,4*size,z);
+ leaves.castShadow=true;
+ scene.add(leaves);
+
+ const top=new THREE.Mesh(
+  new THREE.ConeGeometry(1.1*size,3*size,8),
+  lightGreen
+ );
+
+ top.position.set(x,5.1*size,z);
+ scene.add(top);
+}
+// JUNGLE
+for(let z=15;z>=-120;z-=6){
+ tree(-4,z,1);
+ tree(4,z,1);
+ tree(-7,z-3,1.2);
+ tree(7,z-3,1.2);
+}
+
+// SUPERHERO
+const hero=new THREE.Group();
+scene.add(hero);
+
+function box(parent,w,h,d,mat,x,y,z){
+ const mesh=new THREE.Mesh(
+  new THREE.BoxGeometry(w,h,d),mat
+ );
+ mesh.position.set(x,y,z);
+ mesh.castShadow=true;
+ mesh.receiveShadow=true;
+ parent.add(mesh);
+ return mesh;
+}
+
+// BODY
+box(hero,0.9,1.2,0.5,blue,0,1.5,0);
+
+// HEAD
+box(hero,0.65,0.65,0.55,skin,0,2.45,0);
+
+// MASK
+box(hero,0.7,0.2,0.6,red,0,2.65,0);
+
+// BELT
+box(hero,1.1,0.2,0.55,gold,0,2.05,0);
+
+// LEGS
+box(hero,0.35,0.9,0.35,red,-0.3,0.45,0);
+box(hero,0.35,0.9,0.35,red,0.3,0.45,0);
+
+// ARMS
+box(hero,0.3,0.8,0.35,blue,-0.65,1.5,0);
+box(hero,0.3,0.8,0.35,blue,0.65,1.5,0);
+
+hero.position.set(0,0,5);
+// SNAKES
+const snakes=[];
+
+for(let i=0;i<8;i++){
+
+ const snake=new THREE.Mesh(
+  new THREE.TorusGeometry(0.45,0.13,8,16),
+  material(0x22cc55)
+ );
+
+ snake.position.set(
+  i%2===0?-2:2,
+  0.3,
+  -12-i*10
+ );
+
+ scene.add(snake);
+ snakes.push(snake);
+}
+
+// COINS
+const coinObjects=[];
+
+for(let i=0;i<12;i++){
+
+ const coin=new THREE.Mesh(
+  new THREE.TorusGeometry(0.4,0.12,12,24),
+  gold
+ );
+
+ coin.position.set(
+  i%2===0?-1.5:1.5,
+  1,
+  -8-i*7
+ );
+
+ scene.add(coin);
+ coinObjects.push(coin);
+}
+
+// GOLDEN KEY
+const key=new THREE.Group();
+
+const ring=new THREE.Mesh(
+ new THREE.TorusGeometry(0.35,0.1,12,24),
+ gold
+ );
+
+key.add(ring);
+
+box(key,0.15,0.9,0.15,gold,0,-0.5,0);
+
+key.position.set(0,1,-75);
+scene.add(key);
+// TREASURE CHEST
+const chest=new THREE.Group();
+
+box(chest,2,1.2,1.2,material(0x8b4513),0,0.6,0);
+box(chest,2.05,0.25,1.25,gold,0,1.25,0);
+box(chest,0.35,0.45,0.15,gold,0,0.85,0);
+
+chest.position.set(0,0,-100);
+scene.add(chest);
+
+// CONTROLS
+const keys={
+ left:false,
+ right:false,
+ forward:false,
+ back:false
+};
+
+function bind(id,name){
+
+ const button=$(id);
+
+ button.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  keys[name]=true;
+ });
+
+ ['pointerup','pointerleave','pointercancel'].forEach(event=>{
+  button.addEventListener(event,()=>{
+   keys[name]=false;
+  });
+ });
+}
+
+bind('left','left');
+bind('right','right');
+bind('forward','forward');
+bind('back','back');
+
+$('shield').addEventListener('pointerdown',()=>{
+ shieldTime=5;
+ message('Shield activated!');
+});
+// KEYBOARD
+addEventListener('keydown',e=>{
+ if(e.key==='ArrowLeft')keys.left=true;
+ if(e.key==='ArrowRight')keys.right=true;
+ if(e.key==='ArrowUp')keys.forward=true;
+ if(e.key==='ArrowDown')keys.back=true;
+});
+
+addEventListener('keyup',e=>{
+ if(e.key==='ArrowLeft')keys.left=false;
+ if(e.key==='ArrowRight')keys.right=false;
+ if(e.key==='ArrowUp')keys.forward=false;
+ if(e.key==='ArrowDown')keys.back=false;
+});
+
+// GAME LOOP
+const clock=new THREE.Clock();
+
+function animate(){
+
+ requestAnimationFrame(animate);
+
+ const dt=Math.min(clock.getDelta(),0.05);
+ const t=clock.elapsedTime;
+
+ if(!gameOver){
+
+  // MOVEMENT
+  if(keys.left)hero.position.x-=5*dt;
+  if(keys.right)hero.position.x+=5*dt;
+  if(keys.forward)hero.position.z-=7*dt;
+  if(keys.back)hero.position.z+=7*dt;
+
+  hero.position.x=THREE.MathUtils.clamp(
+   hero.position.x,-2,2
+  );
+
+  hero.position.z=THREE.MathUtils.clamp(
+   hero.position.z,-105,5
+  );
+
+  if(shieldTime>0)shieldTime-=dt;
+// COINS
+  coinObjects.forEach(coin=>{
+
+   if(!coin.visible)return;
+
+   coin.rotation.y+=dt*3;
+
+   if(coin.position.distanceTo(hero.position)<2){
+
+    coin.visible=false;
+    coins++;
+
+    $('coins').textContent=coins;
+    message('Coin collected!');
+   }
+  });
+
+  // KEY
+  key.rotation.y+=dt*2;
+
+  if(key.visible&&key.position.distanceTo(hero.position)<2){
+
+   key.visible=false;
+   hasKey=true;
+
+   $('key').textContent='Yes';
+   message('Golden key found!');
+  }
+
+  // TREASURE
+  if(chest.visible&&chest.position.distanceTo(hero.position)<3){
+
+   if(hasKey){
+
+    chest.visible=false;
+    message('🏆 YOU WIN! TREASURE UNLOCKED!');
+    gameOver=true;
+
+   }else{
+    message('Find the golden key first!');
+   }
+  }
+
+  // SNAKES
+  snakes.forEach(snake=>{
+
+   snake.position.x+=Math.sin(
+    t*2+snake.position.z
+   )*dt*0.7;
+
+   if(
+    snake.position.distanceTo(hero.position)<1.5
+    &&shieldTime<=0
+   ){
+
+    health-=20*dt;
+
+    $('health').textContent=Math.max(
+     0,Math.floor(health)
+    );
+   }
+  });
+
+  // HEALTH
+  if(health<=0){
+
+   health=0;
+   gameOver=true;
+   message('GAME OVER! Press Restart.');
+  }
+
+  if(messageTime>0){
+
+   messageTime-=dt;
+
+   if(messageTime<=0&&!gameOver){
+    $('msg').textContent=
+     'Find the key and reach the treasure!';
+   }
+  }
+ }
+
+ // CAMERA
+ camera.position.set(
+  hero.position.x*0.35,
+  7,
+  hero.position.z+12
+ );
+
+ camera.lookAt(
+  hero.position.x,
+  1,
+  hero.position.z-5
+ );
+
+ renderer.render(scene,camera);
+}
+
+animate();
+// SCREEN RESIZE
+addEventListener('resize',()=>{
+
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+
+ renderer.setSize(innerWidth,innerHeight);
+});
+
+</script>
 </body>
 </html>
