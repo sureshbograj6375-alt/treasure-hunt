@@ -1,119 +1,429 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Treasure Hunt</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jungle Quest - Treasure Hunt</title>
+
 <style>
-body {
-  background: linear-gradient(#174c32,#071e18);
-  color: white;
-  font-family: Arial;
-  text-align: center;
-  padding: 15px;
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ padding:12px;
+ text-align:center;
+ font-family:Arial,sans-serif;
+ color:white;
+ background:linear-gradient(#063b24,#092b18);
 }
-h1 {color: gold;font-size: 32px;}
-p {font-size: 18px;}
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 12px;
-  max-width: 350px;
-  margin: 25px auto;
+
+h1{
+ color:#ffdf55;
+ font-size:27px;
+ text-shadow:2px 3px 5px black;
 }
-.box {
-  height: 95px;
-  font-size: 38px;
-  background: #9b642e;
-  border: 3px solid gold;
-  border-radius: 15px;
+
+.small{color:#b9edba}
+
+#info{
+ display:flex;
+ justify-content:center;
+ flex-wrap:wrap;
+ gap:8px;
+ margin:15px auto;
 }
-button {cursor:pointer;}
-#message {color: gold;font-weight:bold;}
-#restart {
-  padding: 13px 25px;
-  border: 0;
-  border-radius: 10px;
-  background: gold;
-  font-weight: bold;
+
+.badge{
+ background:#175c35;
+ border:2px solid #70b94e;
+ padding:10px 13px;
+ border-radius:12px;
+ font-weight:bold;
+}
+
+.gamebox{
+ max-width:540px;
+ margin:auto;
+ padding:5px;
+ background:#754b20;
+ border:4px solid #d4a54a;
+ border-radius:15px;
+}
+
+canvas{
+ width:100%;
+ display:block;
+ border-radius:8px;
+ touch-action:none;
+ background:#398b35;
+}
+
+#message{
+ min-height:35px;
+ color:#ffe66b;
+ font-weight:bold;
+ margin:14px 0;
+}
+
+.controls{
+ display:grid;
+ grid-template-columns:repeat(3,65px);
+ justify-content:center;
+ gap:8px;
+ margin:15px auto;
+}
+
+button{
+ border:0;
+ border-radius:12px;
+ background:linear-gradient(#ffe36c,#e6a923);
+ color:#392508;
+ font-size:24px;
+ font-weight:bold;
+ padding:12px;
+ cursor:pointer;
+ box-shadow:0 4px 0 #94600f;
+}
+
+button:active{
+ transform:translateY(3px);
+ box-shadow:none;
+}
+
+#next,#restart{
+ font-size:16px;
+ padding:12px 22px;
+ margin:5px;
+}
+
+#next{display:none}
+
+@media(max-width:400px){
+ h1{font-size:23px}
+ .badge{padding:8px;font-size:13px}
 }
 </style>
 </head>
+
 <body>
 
-<h1>💎 TREASURE HUNT</h1>
-<p>Find the Hidden Treasure!</p>
+<h1>🌴 JUNGLE QUEST 🌴</h1>
+<div class="small">⚔️ TREASURE HUNT ADVENTURE ⚔️</div>
 
-<h2>🪙 Coins: <span id="coins">0</span></h2>
-<h3>Level: <span id="level">1</span></h3>
+<div id="info">
+ <div class="badge">⭐ Level: <span id="level">1</span></div>
+ <div class="badge">🪙 Coins: <span id="coins">0</span></div>
+ <div class="badge">❤️ Lives: <span id="lives">3</span></div>
+</div>
 
-<div class="grid" id="grid"></div>
+<div class="gamebox">
+ <canvas id="game" width="520" height="360"></canvas>
+</div>
 
-<h3 id="message">Choose a Treasure Box!</h3>
+<div id="message">
+ 🔑 चाबी खोजो और खजाना हासिल करो!
+</div>
 
-<button id="restart" onclick="startGame()">Restart Game</button>
+<div class="controls">
+ <div></div>
+ <button onclick="move(0,-1)">⬆️</button>
+ <div></div>
+
+ <button onclick="move(-1,0)">⬅️</button>
+ <button onclick="move(0,1)">⬇️</button>
+ <button onclick="move(1,0)">➡️</button>
+</div>
+
+<button id="next" onclick="nextLevel()">
+ 🏆 NEXT LEVEL
+</button>
+
+<button id="restart" onclick="restart()">
+ 🔄 RESTART
+</button>
+
+<p class="small">
+ 🌳 पेड़ों के बीच रास्ता खोजो। 🐍 साँप से बचो।
+ <br>🔑 चाबी लो और 💎 खजाना खोलो!
+</p>
 
 <script>
-let coins = 0;
-let level = 1;
-let found = 0;
-let tries = 3;
-let treasures = [];
 
-function startGame() {
-  found = 0;
-  tries = 3;
-  treasures = [];
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-  let count = Math.min(2 + Math.floor((level-1)/2),5);
+const cols=13;
+const rows=9;
+const size=40;
 
-  while(treasures.length < count) {
-    let n = Math.floor(Math.random()*9);
-    if(!treasures.includes(n)) treasures.push(n);
-  }
+let level=1;
+let coins=Number(localStorage.getItem("jungleCoins")||0);
+let lives=3;
 
-  document.getElementById("grid").innerHTML = "";
-  document.getElementById("message").innerText = "Find the treasure!";
+let player,key,chest,snake,trees;
+let hasKey=false;
+let won=false;
+let gameOver=false;
 
-  for(let i=0;i<9;i++) {
-    let b = document.createElement("button");
-    b.className = "box";
-    b.innerText = "📦";
+let snakeTimer;
 
-    b.onclick = function() {
-      if(b.disabled) return;
-      b.disabled = true;
-
-      if(treasures.includes(i)) {
-        b.innerText = "💎";
-        coins += 10*level;
-        found++;
-        document.getElementById("message").innerText = "Amazing! Treasure Found!";
-      } else {
-        b.innerText = "🪨";
-        tries--;
-        document.getElementById("message").innerText = "Empty Box! Chances left: "+tries;
-      }
-
-      document.getElementById("coins").innerText = coins;
-
-      if(found === count) {
-        document.getElementById("message").innerText = "🏆 Level Complete!";
-        level++;
-        document.getElementById("level").innerText = level;
-        document.querySelectorAll(".box").forEach(x=>x.disabled=true);
-      }
-
-      if(tries === 0) {
-        document.getElementById("message").innerText = "Game Over! Restart to play again.";
-      }
-    };
-
-    document.getElementById("grid").appendChild(b);
-  }
+function same(a,b){
+ return a.x===b.x && a.y===b.y;
 }
 
-startGame();
-</script>
-</body>
-</html>
+function randomCell(){
+ return {
+  x:Math.floor(Math.random()*11)+1,
+  y:Math.floor(Math.random()*7)+1
+ };
+}
+
+function occupied(p){
+ return same(p,player) ||
+ same(p,key) ||
+ same(p,chest) ||
+ same(p,snake) ||
+ trees.some(t=>same(t,p));
+}
+
+function newLevel(){
+
+ clearInterval(snakeTimer);
+
+ player={x:1,y:1};
+ key=randomCell();
+ chest={x:11,y:7};
+ snake={x:8,y:2};
+
+ trees=[];
+ hasKey=false;
+ won=false;
+ gameOver=false;
+
+ document.getElementById("next").style.display="none";
+
+ for(let i=0;i<15;i++){
+  let t=randomCell();
+  if(!occupied(t)){
+   trees.push(t);
+  }
+ }
+
+ updateInfo();
+ draw();
+
+ document.getElementById("message").innerText=
+ "🔑 जंगल में चाबी खोजो!";
+
+ startSnake();
+}
+
+function updateInfo(){
+
+ document.getElementById("level").innerText=level;
+ document.getElementById("coins").innerText=coins;
+ document.getElementById("lives").innerText=lives;
+
+}
+
+function draw(){
+
+ ctx.clearRect(0,0,520,360);
+
+ // Jungle ground
+ for(let y=0;y<rows;y++){
+  for(let x=0;x<cols;x++){
+
+   ctx.fillStyle=(x+y)%2===0?
+   "#55a944":"#438d36";
+
+   ctx.fillRect(x*size,y*size,size,size);
+
+   ctx.strokeStyle="#36782c";
+   ctx.strokeRect(x*size,y*size,size,size);
+  }
+ }
+
+ // Jungle trees
+ trees.forEach(t=>{
+  ctx.font="29px Arial";
+  ctx.fillText("🌳",t.x*size+4,t.y*size+31);
+ });
+
+ // Camp
+ ctx.font="29px Arial";
+ ctx.fillText("🏕️",45,70);
+
+ // Treasure
+ if(!won){
+  ctx.font="29px Arial";
+  ctx.fillText("💎",chest.x*size+5,chest.y*size+31);
+ }
+
+ // Key
+ if(!hasKey){
+  ctx.font="29px Arial";
+  ctx.fillText("🔑",key.x*size+5,key.y*size+31);
+ }
+
+ // Snake
+ ctx.font="29px Arial";
+ ctx.fillText("🐍",snake.x*size+5,snake.y*size+31);
+
+ // Player
+ ctx.font="29px Arial";
+ ctx.fillText("🧑🏻‍🌾",player.x*size+5,player.y*size+31);
+
+}
+
+function move(dx,dy){
+
+ if(gameOver||won)return;
+
+ let nx=player.x+dx;
+ let ny=player.y+dy;
+
+ if(nx<0||ny<0||nx>=cols||ny>=rows)return;
+
+ player={x:nx,y:ny};
+
+ // Get key
+ if(!hasKey&&same(player,key)){
+
+  hasKey=true;
+
+  document.getElementById("message").innerText=
+  "🎉 चाबी मिल गई! अब खजाना खोलो!";
+ }
+
+ // Snake collision
+ if(same(player,snake)){
+  hitSnake();
+  draw();
+  return;
+ }
+
+ // Treasure collision
+ if(same(player,chest)){
+
+  if(hasKey){
+
+   won=true;
+   coins+=10;
+
+   localStorage.setItem("jungleCoins",coins);
+
+   updateInfo();
+
+   document.getElementById("message").innerText=
+   "🏆 शानदार! खजाना मिल गया!";
+
+   document.getElementById("next").style.display="inline-block";
+
+   clearInterval(snakeTimer);
+
+  }else{
+
+   document.getElementById("message").innerText=
+   "🔒 पहले चाबी खोजो!";
+
+  }
+ }
+
+ draw();
+
+}
+
+function hitSnake(){
+
+ lives--;
+
+ updateInfo();
+
+ if(lives<=0){
+
+  gameOver=true;
+
+  document.getElementById("message").innerText=
+  "😢 GAME OVER! RESTART दबाओ।";
+
+  clearInterval(snakeTimer);
+
+ }else{
+
+  player={x:1,y:1};
+
+  document.getElementById("message").innerText=
+  "🐍 साँप ने पकड़ लिया! एक जान कम हुई।";
+
+ }
+
+}
+
+function startSnake(){
+
+ snakeTimer=setInterval(()=>{
+
+  if(gameOver||won)return;
+
+  let directions=[
+   [1,0],[-1,0],[0,1],[0,-1]
+  ];
+
+  let d=directions[
+   Math.floor(Math.random()*directions.length)
+  ];
+
+  let nx=snake.x+d[0];
+  let ny=snake.y+d[1];
+
+  if(nx>0&&nx<12&&ny>0&&ny<8){
+
+   snake={x:nx,y:ny};
+
+  }
+
+  if(same(player,snake)){
+   hitSnake();
+  }
+
+  draw();
+
+ },Math.max(450,1100-level*5));
+
+}
+
+function nextLevel(){
+
+ if(!won)return;
+
+ if(level>=100){
+
+  document.getElementById("message").innerText=
+  "👑 बधाई! आपने सभी 100 LEVELS पूरे कर लिए!";
+
+  document.getElementById("next").style.display="none";
+
+  return;
+ }
+
+ level++;
+
+ newLevel();
+
+}
+
+function restart(){
+
+ clearInterval(snakeTimer);
+
+ level=1;
+ lives=3;
+
+ newLevel();
+
+}
+
+document.addEventListener("keydown",e=>{
+
+ if
