@@ -2,84 +2,269 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Super Car Racing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jungle Quest</title>
 <style>
-*{box-sizing:border-box}
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
 body{
- margin:0;background:#101820;color:white;
- font-family:Arial;text-align:center;
+background:#102d19;
+color:white;
+font-family:Arial;
+text-align:center;
+overflow:hidden;
 }
-h2{color:#ffcc00;margin:12px}
-#game{
- display:block;width:100%;max-width:420px;
- height:auto;margin:auto;
- background:#333;border:3px solid white;
+h2{
+color:gold;
+padding:10px;
 }
-.info{font-size:18px;margin:8px}
-.controls{
- display:flex;justify-content:center;
- gap:15px;margin:15px;
+canvas{
+width:100%;
+max-width:800px;
+background:#65c5ff;
+border:3px solid white;
+display:block;
+margin:auto;
 }
 button{
- background:#ffbd24;border:0;
- border-radius:12px;padding:15px 25px;
- font-size:25px;font-weight:bold;
+padding:12px 22px;
+font-size:22px;
+border:0;
+border-radius:12px;
+background:orange;
 }
-#start{font-size:18px}
 </style>
 </head>
 <body>
+<h2>🌴 JUNGLE QUEST 🌴</h2>
 
-<h2>🏎️ SUPER CAR RACING</h2>
+<p>
+❤️ <span id="life">3</span>
+|
+🪙 <span id="score">0</span>
+|
+🏆 LEVEL <span id="level">1</span>
+</p>
 
-<div class="info">
- SCORE: <span id="score">0</span>
- | COINS: <span id="coins">0</span>
-</div>
-
-<canvas id="game" width="400" height="600"></canvas>
-
-<button id="start">START GAME</button>
-
-<div class="controls">
+<canvas id="game" width="800" height="400"></canvas>
+<div style="padding:12px">
 <button id="left">⬅️</button>
+<button id="jump">⬆️</button>
 <button id="right">➡️</button>
-<button id="boost">⚡</button>
 </div>
 
+<button id="restart">RESTART</button>
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-let car={x:180,y:490,w:40,h:75};
-let enemies=[];
-let coins=[];
+let player={
+x:50,y:280,w:35,h:45,
+vy:0,ground:false
+};
+
 let score=0;
-let coinCount=0;
-let speed=5;
-let running=false;
+let life=3;
+let level=1;
 let gameOver=false;
-let left=false,right=false;
-let road=0;
-let frame=0;
-let boosting=false;
+let win=false;
 
-function drawCar(x,y,color){
-ctx.fillStyle=color;
-ctx.fillRect(x,y,40,75);
+let keys={
+left:false,
+right:false
+};
+function background(){
 
-ctx.fillStyle="#111";
-ctx.fillRect(x+5,y+12,30,20);
+ctx.fillStyle="#67c5ff";
+ctx.fillRect(0,0,800,400);
 
-ctx.fillStyle="#ddd";
-ctx.fillRect(x+7,y+40,26,13);
+ctx.fillStyle="#176b2c";
 
-ctx.fillStyle="yellow";
-ctx.fillRect(x+3,y+2,8,5);
-ctx.fillRect(x+29,y+2,8,5);
-ctx.fillStyle="#111";
-ctx.fillRect(x-4,y+12,5,16);
-ctx.fillRect(x+39,y+12,5,16);
-ctx.fillRect(x-4,y+52,5,16);
-ctx.fillRect(x+39,y+52,5,16);
+for(let i=0;i<8;i++){
+ctx.fillRect(i*110,170,20,180);
+
+ctx.beginPath();
+ctx.arc(i*110+10,165,45,0,Math.PI*2);
+ctx.fill();
+}
+
+ctx.fillStyle="#80552e";
+ctx.fillRect(0,350,800,50);
+
+}
+function drawPlayer(){
+
+ctx.fillStyle="red";
+ctx.fillRect(
+player.x,
+player.y,
+player.w,
+player.h
+);
+
+ctx.fillStyle="#ffdbac";
+ctx.fillRect(
+player.x+7,
+player.y-15,
+23,20
+);
+
+ctx.fillStyle="black";
+ctx.fillRect(
+player.x+22,
+player.y-9,
+4,4
+);
+
+}
+let coins=[
+{x:180,y:300},
+{x:300,y:240},
+{x:430,y:300},
+{x:550,y:230},
+{x:680,y:300}
+];
+
+let enemy={
+x:450,y:320,w:35,h:30,dir:1
+};
+
+function drawObjects(){
+
+coins.forEach(c=>{
+ctx.fillStyle="gold";
+ctx.beginPath();
+ctx.arc(c.x,c.y,10,0,Math.PI*2);
+ctx.fill();
+});
+
+ctx.fillStyle="black";
+ctx.fillRect(
+enemy.x,
+enemy.y,
+enemy.w,
+enemy.h
+);
+
+}function update(){
+
+if(gameOver||win)return;
+
+if(keys.left)player.x-=4;
+if(keys.right)player.x+=4;
+
+player.x=Math.max(0,Math.min(765,player.x));
+
+player.vy+=0.6;
+player.y+=player.vy;
+
+if(player.y+player.h>=350){
+player.y=305;
+player.vy=0;
+player.ground=true;
+}
+
+enemy.x+=enemy.dir*2;
+
+if(enemy.x>730||enemy.x<300){
+enemy.dir*=-1;
+}
+
+coins=coins.filter(c=>{
+
+let hit=
+player.x<c.x+12 &&
+player.x+player.w>c.x-12 &&
+player.y<c.y+12 &&
+player.y+player.h>c.y-12;
+
+if(hit)score+=10;
+
+return !hit;
+});
+
+if(player.x<enemy.x+enemy.w &&
+player.x+player.w>enemy.x &&
+player.y<enemy.y+enemy.h &&
+player.y+player.h>enemy.y){
+
+life--;
+player.x=50;
+
+if(life<=0)gameOver=true;
+}
+
+if(coins.length===0)win=true;
+
+}<script>
+function draw(){
+background();
+drawObjects();
+drawPlayer();
+
+document.getElementById("score").textContent=score;
+document.getElementById("life").textContent=life;
+document.getElementById("level").textContent=level;
+
+if(gameOver || win){
+ctx.fillStyle="rgba(0,0,0,0.8)";
+ctx.fillRect(0,0,800,400);
+
+ctx.fillStyle="gold";
+ctx.font="40px Arial";
+ctx.textAlign="center";
+
+ctx.fillText(
+gameOver ? "GAME OVER" : "LEVEL COMPLETE!",
+400,190
+);
+
+ctx.font="22px Arial";
+ctx.fillStyle="white";
+ctx.fillText("RESTART TO PLAY AGAIN",400,235);
+}
+}
+
+function loop(){
+update();
+draw();
+requestAnimationFrame(loop);
+}
+
+function control(id,key){
+let btn=document.getElementById(id);
+
+btn.addEventListener("pointerdown",e=>{
+e.preventDefault();
+keys[key]=true;
+});
+
+["pointerup","pointercancel","pointerleave"]
+.forEach(event=>{
+btn.addEventListener(event,()=>{
+keys[key]=false;
+});
+});
+}
+
+control("left","left");
+control("right","right");
+
+document.getElementById("jump").onclick=()=>{
+if(player.ground && !gameOver && !win){
+player.vy=-12;
+player.ground=false;
+}
+};
+
+document.getElementById("restart").onclick=()=>{
+location.reload();
+};
+
+loop();
+</script>
+</body>
+</html>
