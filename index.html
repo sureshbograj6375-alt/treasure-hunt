@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Superhero Treasure Hunt 3D</title>
+<title>3D Superhero Treasure Hunt</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;overflow:hidden;background:#071b16;color:white;font-family:Arial}
@@ -84,7 +84,6 @@ const path=new THREE.Mesh(
  new THREE.BoxGeometry(5,0.1,100),
  new THREE.MeshStandardMaterial({color:0x9b7847})
 );
-path.position.y=0;
 scene.add(path);
 
 const river=new THREE.Mesh(
@@ -111,10 +110,7 @@ function tree(x,z){
 }
 for(let z=-45;z<=45;z+=7){
  tree(-7,z);tree(7,z);tree(-11,z+3);tree(19,z+2);
-}
-
-// HERO
-const hero=new THREE.Group();
+}const hero=new THREE.Group();
 scene.add(hero);
 
 const red=new THREE.MeshStandardMaterial({color:0xe51b23});
@@ -130,64 +126,13 @@ function box(parent,w,h,d,mat,x,y,z){
  return m;
 }
 
+// Superhero
 box(hero,0.9,1.2,0.5,blue,0,1.5,0);
 box(hero,0.65,0.65,0.55,skin,0,2.45,0);
 box(hero,1.1,0.2,0.55,gold,0,2.05,0);
 box(hero,0.35,0.9,0.35,red,-0.3,0.45,0);
 box(hero,0.35,0.9,0.35,red,0.3,0.45,0);
-box(hero,0.3,0.9,0.3,blue,-0.65,1.5,0);
-box(hero,0.3,0.9,0.3,blue,0.65,1.5,0);
-box(hero,0.9,1.5,0.12,red,0,1.5,-0.4);
-hero.position.set(0,0,20);
-
-// SNAKES
-const snakes=[];
-function makeSnake(x,z){
- const s=new THREE.Group();
- const mat=new THREE.MeshStandardMaterial({color:0x8cdb28});
- const body=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,2,12),mat);
- body.rotation.x=Math.PI/2;
- s.add(body);
- const head=new THREE.Mesh(new THREE.SphereGeometry(0.4,12,12),mat);
- head.position.z=-1;
- s.add(head);
- s.position.set(x,0.5,z);
- scene.add(s);
- snakes.push(s);
-}
-makeSnake(-3,0);
-makeSnake(3,-20);
-makeSnake(-2,-40);
-
-// COINS
-const coinObjects=[];
-for(let i=0;i<15;i++){
- const c=new THREE.Mesh(
-  new THREE.TorusGeometry(0.35,0.12,8,20),
-  gold
- );
- c.position.set((Math.random()-0.5)*3,1,15-i*5);
- scene.add(c);
- coinObjects.push(c);
-}
-
-// KEY
-const key=new THREE.Group();
-const ring=new THREE.Mesh(new THREE.TorusGeometry(0.35,0.1,8,20),gold);
-key.add(ring);
-box(key,0.15,0.8,0.15,gold,0,-0.45,0);
-key.position.set(0,1,-35);
-scene.add(key);
-
-// TREASURE CHEST
-const chest=new THREE.Group();
-box(chest,1.8,1.1,1.2,new THREE.MeshStandardMaterial({color:0x7b3f0b}),0,0.55,0);
-box(chest,1.9,0.2,1.3,gold,0,1.15,0);
-box(chest,0.25,0.35,0.15,gold,0,0.75,0);
-chest.position.set(0,0,-55);
-scene.add(chest);
-
-// CONTROLS
+box(hero,0.3,0.9,0.3,blue,-0.65// CONTROLS
 const keys={};
 function bind(id,name){
  const b=$(id);
@@ -230,59 +175,4 @@ function animate(){
  const t=clock.elapsedTime;
 
  if(!gameOver){
-  if(keys.left)hero.position.x-=5*dt;
-  if(keys.right)hero.position.x+=5*dt;
-  if(keys.forward)hero.position.z-=7*dt;
-  if(keys.back)hero.position.z+=7*dt;
-
-  hero.position.x=THREE.MathUtils.clamp(hero.position.x,-4,4);
-  hero.position.z=THREE.MathUtils.clamp(hero.position.z,-60,25);
-
-  if(shieldTime>0)shieldTime-=dt;
-
-  coinObjects.forEach(c=>{
-   if(!c.visible)return;
-   c.rotation.y+=dt*3;
-   if(c.position.distanceTo(hero.position)<1.5){
-    c.visible=false;
-    coins++;
-    $('coins').textContent=coins;
-    message('Coin collected!');
-   }
-  });
-
-  key.rotation.y+=dt*2;
-  if(key.visible&&key.position.distanceTo(hero.position)<2){
-   key.visible=false;
-   hasKey=true;
-   $('key').textContent='Yes';
-   message('Key found! Find the treasure!');
-  }
-
-  if(chest.visible&&chest.position.distanceTo(hero.position)<2.5){
-   if(hasKey){
-    chest.visible=false;
-    message('🏆 YOU WIN! TREASURE UNLOCKED!');
-    gameOver=true;
-   }else{
-    message('Find the golden key first!');
-   }
-  }
-
-  snakes.forEach(s=>{
-   s.position.x+=Math.sin(t*2+s.position.z)*dt*0.7;
-   if(s.position.distanceTo(hero.position)<1.5&&shieldTime<=0){
-    health-=20*dt;
-    $('health').textContent=Math.max(0,Math.floor(health));
-   }
-  });
-
-  if(health<=0){
-   health=0;
-   gameOver=true;
-   message('GAME OVER! Press Restart.');
-  }
-
-  if(messageTime>0){
-   messageTime-=dt;
-   if(messageTime<=0&&!game
+  if(keys
